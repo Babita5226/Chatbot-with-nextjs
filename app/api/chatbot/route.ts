@@ -11,7 +11,12 @@ export async function POST(req: NextRequest) {
   if (contentType.includes("multipart/form-data")) {
     const formData = await req.formData();
     image = formData.get("image"); // This is a File object
-    messages = JSON.parse(formData.get("messages"));
+    const messagesRaw = formData.get("messages");
+    if (typeof messagesRaw === "string") {
+      messages = JSON.parse(messagesRaw);
+    } else {
+      messages = undefined;
+    }
     // You can now process the image and messages
   } else {
     ({ messages } = await req.json());

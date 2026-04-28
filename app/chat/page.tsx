@@ -4,17 +4,19 @@ import {
   PaperAirplaneIcon,
   ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/solid";
+
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import { useEffect, useRef, useState } from "react";
+import type { ChatMessage } from "@/types/chat";
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [images, setImages] = useState([]); // Array of File
-  const [imagePreviews, setImagePreviews] = useState([]); // Array of string (data URLs)
+  const [images, setImages] = useState<File[]>([]); // Array of File
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]); // Array of string (data URLs)
   // Add welcome message only on client
   useEffect(() => {
     setMessages([
@@ -31,7 +33,7 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  async function handleSend(e) {
+  async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim() && images.length === 0) return;
 
@@ -48,12 +50,13 @@ export default function ChatPage() {
     setLoading(true);
 
     try {
-      let body;
-      let headers = {};
+      let body: FormData | string;
+      let headers: Record<string, string> = {};
       if (images.length > 0) {
-        body = new FormData();
-        images.forEach((img, i) => body.append("images", img));
-        body.append("messages", JSON.stringify([...messages, userMsg]));
+        const form = new FormData();
+        images.forEach((img, i) => form.append("images", img));
+        form.append("messages", JSON.stringify([...messages, userMsg]));
+        body = form;
       } else {
         body = JSON.stringify({ messages: [...messages, userMsg] });
         headers["Content-Type"] = "application/json";
@@ -86,17 +89,25 @@ export default function ChatPage() {
     }
   }
 
-  function handleImageChange(e) {
+  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
     setImages(files);
     const readers = files.map((file) => {
       return new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onload = (ev) => resolve(ev.target.result);
+        reader.onload = (ev) => {
+          if (ev.target) {
+            resolve(ev.target.result);
+          } else {
+            resolve(null);
+          }
+        };
         reader.readAsDataURL(file);
       });
     });
-    Promise.all(readers).then(setImagePreviews);
+    Promise.all(readers).then((results) => {
+      setImagePreviews(results.filter((r): r is string => typeof r === "string"));
+    });
   }
 
   return (
