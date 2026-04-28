@@ -1,65 +1,134 @@
-import Image from "next/image";
+"use client";
+import type { Post } from "@/types/post";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 
 export default function Home() {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadPosts = useCallback(async () => {
+    try {
+      const response = await fetch("/api/posts", { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error("Failed to load posts");
+      }
+      const data = (await response.json()) as Post[];
+      setPosts(data);
+      setErrorMessage(null);
+    } catch {
+      setErrorMessage("Unable to load posts right now.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadPosts();
+  }, [loadPosts]);
+
+  const deletePost = async (id: string) => {
+    const response = await fetch(`/api/posts/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      alert("Failed to delete post.");
+      return;
+    }
+
+    setPosts((currentPosts) => currentPosts.filter((post) => post.id !== id));
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="app-canvas relative flex-1 overflow-hidden">
+      <section className="relative mx-auto w-full max-w-6xl px-6 py-14 sm:px-8 sm:py-16 lg:px-12">
+        <header className="reveal-up max-w-3xl">
+          <p className="inline-flex rounded-full border border-[color:var(--surface-border)] bg-white/70 px-4 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[color:var(--muted)]">
+            Studio Journal
           </p>
+          <h1 className="font-display mt-5 text-4xl leading-tight text-[color:var(--foreground)] sm:text-5xl lg:text-6xl">
+            Build Notes For Curious Minds
+          </h1>
+          <p className="mt-6 max-w-2xl text-base text-[color:var(--muted)] sm:text-lg">
+            Small, practical reads about building product features, fixing
+            mistakes, and learning in public.
+          </p>
+            <Link
+              href="/chat"
+              className="mt-6 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all duration-300 hover:pr-5"
+              style={{ background: "linear-gradient(90deg,#3b82f6,#1e40af)" }}
+            >
+              💬 Try the Chatbot
+            </Link>
+        </header>
+        <Link
+          href="/create"
+          className="mt-6 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all duration-300 hover:pr-5"
+          style={{ backgroundColor: "#d05b42" }}
+        >
+          Create New Blog
+        </Link>
+
+        <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {isLoading ? (
+            <p className="text-sm text-[color:var(--muted)]">Loading posts...</p>
+          ) : null}
+
+          {errorMessage ? (
+            <p className="text-sm text-red-600">{errorMessage}</p>
+          ) : null}
+
+          {posts.map((post, index) => {
+            const delayClass =
+              index === 0
+                ? "reveal-up-delay-1"
+                : index === 1
+                  ? "reveal-up-delay-2"
+                  : "reveal-up-delay-3";
+
+            return (
+              <article
+                key={post.id}
+                className={`surface-card reveal-up ${delayClass} group flex min-h-64 flex-col rounded-3xl p-6`}
+              >
+                
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--muted)] flex justify-between">
+                  <span>
+                    Issue {post.id.padStart(2, "0")}
+                  </span>
+                  <div
+                    onClick={() => deletePost(post.id)}
+                    className="text-red-500 cursor-pointer"
+                  >
+                    Delete
+                  </div>
+                </span>
+                <h2 className="font-display mt-4 text-2xl leading-tight text-[color:var(--foreground)]">
+                  {post.title}
+                </h2>
+                <p className="mt-4 text-sm text-[color:var(--muted)]">
+                  {post.content}
+                </p>
+                <div className="mt-auto pt-8">
+                  <Link
+                    href={`/blog/${post.id}`}
+                    className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all duration-300 hover:pr-5"
+                    style={{
+                      backgroundColor: "#d05b42",
+                    }}
+                  >
+                    Read Story
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }
